@@ -1,2 +1,0 @@
-/* Learn Multitreading in c
- * */

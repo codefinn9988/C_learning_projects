@@ -1,11 +1,12 @@
-// https://ricardolovelace.com/blog/creating-bitmap-images-with-c-on-windows/
-// https://www-user.tu-chemnitz.de/~heha/hs/chm/petzold.chm/petzoldi/ch15b.htm
-// https://en.wikipedia.org/wiki/BMP_file_format
+/*
+ * https://ricardolovelace.com/blog/creating-bitmap-images-with-c-on-windows/
+ * https://www-user.tu-chemnitz.de/~heha/hs/chm/petzold.chm/petzoldi/ch15b.htm
+ * https://en.wikipedia.org/wiki/BMP_file_format
+ */
 
 #include <stdint.h>
-#include <stdlib.h>
-
 #include <stdio.h>
+#include <stdlib.h>
 
 ; // clang issue
 #pragma pack(push, 1)
@@ -15,14 +16,15 @@
 // Pixel Data: actual data
 typedef struct {
   uint16_t bftypes;
-  uint16_t bfsize;
+  uint32_t bfsize;
   uint16_t bfReserved1;
   uint16_t bfReserved2;
-  uint16_t bfOffBits;
+  uint32_t bfOffBits;
 } BITMAPFILEHEADER;
 
+// Bitmap Info header
 typedef struct {
-  uint16_t biSize;
+  uint32_t biSize;
   int32_t biWidth;
   int32_t biHeight;
   uint16_t biPlanes;
@@ -61,13 +63,25 @@ void save_bitmap(const char *filename, int width, int height,
   bih.biClrUsed = 0;
   bih.biClrImportant = 0;
   FILE *file = fopen(filename, "wb");
+  // write header to file
   fwrite(&bfh, sizeof(BITMAPFILEHEADER), 1, file);
   fwrite(&bih, sizeof(BITMAPINFOHEADER), 1, file);
-  for (int i = 0; i < width * height; i++) {
-    fwrite(&pixel_data[i * 3 + 2], sizeof(uint8_t), 1, file); // blue
-    fwrite(&pixel_data[i * 3 + 1], sizeof(uint8_t), 1, file); // green
-    fwrite(&pixel_data[i * 3], sizeof(uint8_t), 1, file);     // red
+
+  // write pixer data
+  int padding = (4 - (width * 3) % 4) % 4;
+  uint8_t padding_bytes[3] = {0, 0, 0};
+  for (int y = height - 1; y >= 0; y--) {
+    for (int x = 0; x < width; x++) {
+      int index = (y * width + x) * 3;
+      fwrite(&pixel_data[index + 2], 1, 1, file); // Blue
+      fwrite(&pixel_data[index + 1], 1, 1, file); // Green
+      fwrite(&pixel_data[index], 1, 1, file);     // Red
+    }
+    if (padding > 0) {
+      fwrite(padding_bytes, 1, padding, file);
+    }
   }
+
   fclose(file);
 }
 
@@ -75,16 +89,17 @@ int main() {
   int width = 100;
   int height = 100;
   uint8_t *pixels = malloc(width * height * 3);
+  // fill pixel data
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
       int index = (y * width + x) * 3;
-      pixels[index] = 0;       // blue
-      pixels[index + 1] = 0;   // Green
-      pixels[index + 2] = 255; // Red
+      pixels[index] = 255;   // red
+      pixels[index + 1] = 0; // Green
+      pixels[index + 2] = 0; // blue
     }
   }
+  // make a solid rectangle of 255 color
   save_bitmap("output.bmp", width, height, pixels);
   free(pixels);
-
   return 0;
 }
